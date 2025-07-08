@@ -10,8 +10,8 @@ use crate::vector_tile::Tile as VecTile;
 use crate::vector_tile::tile::{
     Feature as VtFeature, GeomType as VtGeomType, Layer as VtLayer, Value,
 };
+use ahash::HashMap;
 use protobuf::{CodedOutputStream, EnumOrUnknown, Message};
-use std::collections::HashMap;
 use std::io::Write;
 
 /// A tile represents a rectangular region of a map.

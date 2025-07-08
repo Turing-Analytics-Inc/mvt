@@ -11,6 +11,7 @@ categories = ["encoding"]
 edition = "2024"
 
 [dependencies]
+ahash = "0.8.12"
 log = "0.4"
 num-traits = "0.2"
 pointy = "0.7"
