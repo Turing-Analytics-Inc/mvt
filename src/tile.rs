@@ -11,6 +11,7 @@ use crate::vector_tile::tile::{
     Feature as VtFeature, GeomType as VtGeomType, Layer as VtLayer, Value,
 };
 use protobuf::{CodedOutputStream, EnumOrUnknown, Message};
+use std::collections::HashMap;
 use std::io::Write;
 
 /// A tile represents a rectangular region of a map.
@@ -60,6 +61,8 @@ pub struct Tile {
 /// ```
 pub struct Layer {
     layer: VtLayer,
+    value_pos_map: HashMap<String, usize>,
+    key_pos_map: HashMap<String, usize>,
 }
 
 /// A Feature contains map geometry with related metadata.
@@ -175,7 +178,11 @@ impl Tile {
 impl Default for Layer {
     fn default() -> Self {
         let layer = VtLayer::new();
-        Layer { layer }
+        Layer {
+            layer,
+            value_pos_map: HashMap::default(),
+            key_pos_map: HashMap::default(),
+        }
     }
 }
 
@@ -189,7 +196,11 @@ impl Layer {
         layer.set_version(2);
         layer.set_name(name.to_string());
         layer.set_extent(extent);
-        Layer { layer }
+        Layer {
+            layer,
+            value_pos_map: HashMap::default(),
+            key_pos_map: HashMap::default(),
+        }
     }
 
     /// Get the layer name.
@@ -226,14 +237,20 @@ impl Layer {
     /// Get position of a key in the layer keys.  If the key is not found, it
     /// is added as the last key.
     fn key_pos(&mut self, key: &str) -> usize {
-        self.layer
+        if let Some(idx) = self.key_pos_map.get(key) {
+            return *idx;
+        }
+        let idx = self
+            .layer
             .keys
             .iter()
             .position(|k| *k == key)
             .unwrap_or_else(|| {
                 self.layer.keys.push(key.to_string());
                 self.layer.keys.len() - 1
-            })
+            });
+        self.key_pos_map.insert(key.to_string(), idx);
+        idx
     }
 
     /// Get position of a value in the layer values.  If the value is not found,
@@ -288,7 +305,11 @@ impl Feature {
         value.set_string_value(val.to_string());
         self.add_tag(key, value);
     }
-
+    pub fn add_tag_string_at_end(&mut self, key: &str, val: &str) {
+        let mut value = Value::new();
+        value.set_string_value(val.to_string());
+        self.add_tag_and_value_at_end(key, value);
+    }
     /// Add a tag of double type.
     pub fn add_tag_double(&mut self, key: &str, val: f64) {
         let mut value = Value::new();
@@ -336,6 +357,14 @@ impl Feature {
         let kidx = self.layer.key_pos(key);
         self.feature.tags.push(kidx as u32);
         let vidx = self.layer.val_pos(value);
+        self.feature.tags.push(vidx as u32);
+    }
+
+    fn add_tag_and_value_at_end(&mut self, key: &str, value: Value) {
+        let kidx = self.layer.key_pos(key);
+        self.feature.tags.push(kidx as u32);
+        self.layer.layer.values.push(value);
+        let vidx = self.layer.layer.values.len() - 1;
         self.feature.tags.push(vidx as u32);
     }
 }
